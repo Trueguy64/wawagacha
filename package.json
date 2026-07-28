@@ -2,19 +2,15 @@
   "name": "wawagacha",
   "private": true,
   "version": "0.1.0",
-  "workspaces": [
-    "server",
-    "web"
-  ],
   "scripts": {
-    "dev": "concurrently -n server,web -c blue,magenta \"npm:dev:server\" \"npm:dev:web\"",
-    "dev:server": "npm run dev -w server",
-    "dev:web": "npm run dev -w web",
-    "build": "npm run build -w server && npm run build -w web",
-    "start": "npm run start -w server",
-    "db:push": "npm run db:push -w server",
-    "db:studio": "npm run db:studio -w server",
-    "typecheck": "npm run typecheck -w server && npm run typecheck -w web"
+    "dev": "concurrently -n server,web -c blue,magenta \"pnpm:dev:server\" \"pnpm:dev:web\"",
+    "dev:server": "pnpm --filter server dev",
+    "dev:web": "pnpm --filter web dev",
+    "build": "pnpm --filter server build && pnpm --filter web build",
+    "start": "pnpm --filter server start",
+    "db:push": "pnpm --filter server db:push",
+    "db:studio": "pnpm --filter server db:studio",
+    "typecheck": "pnpm --filter server typecheck && pnpm --filter web typecheck"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
