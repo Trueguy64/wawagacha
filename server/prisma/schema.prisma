@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Luner {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  rarity    String
+  imageUrl  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  pulls     Pull[]
+
+  @@index([rarity])
+}
+
+/// Bot admins granted by the owner. The application owner is NOT stored here —
+/// ownership comes from Discord itself, so the owner can never be locked out.
+///
+/// A row is either a user or a role: `isRole` rows grant admin to everyone
+/// currently carrying that role, so access follows the server's own roster.
+model Admin {
+  id        String   @id
+  username  String
+  isRole    Boolean  @default(false)
+  grantedBy String
+  grantedAt DateTime @default(now())
+}
+
+model Player {
+  id         String    @id
+  username   String
+  lastRollAt DateTime?
+  createdAt  DateTime  @default(now())
+  pulls      Pull[]
+}
+
+/// One row per successful /roll. This is the only record of who owns what:
+/// a collection is this table grouped by luner, and points are derived from the
+/// luner's current rarity — so fixing a rarity on the admin site retroactively
+/// corrects everyone's score.
+model Pull {
+  id        Int      @id @default(autoincrement())
+  playerId  String
+  lunerId   Int
+  createdAt DateTime @default(now())
+  luner     Luner    @relation(fields: [lunerId], references: [id], onDelete: Cascade)
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
+  @@index([createdAt])
+}
