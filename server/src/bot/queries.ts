@@ -88,9 +88,9 @@ export function weekStart(now: Date = new Date()): Date {
   return start;
 }
 
-export async function getLeaderboard(since?: Date): Promise<LeaderboardRow[]> {
+export async function getLeaderboard(since?: Date, until?: Date): Promise<LeaderboardRow[]> {
   const pulls = await prisma.pull.findMany({
-    where: since ? { createdAt: { gte: since } } : undefined,
+    where: (since || until) ? { createdAt: { ...(since ? { gte: since } : {}), ...(until ? { lt: until } : {}) } } : undefined,
     select: { playerId: true, luner: { select: { rarity: true } } },
   });
 

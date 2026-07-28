@@ -3,6 +3,7 @@ import { prisma } from "../prisma/client.js";
 import { commandsByName } from "./commands/index.js";
 import { botEnv } from "./env.js";
 import { loadOwners } from "./permissions.js";
+import { startCronJobs } from "./cron.js";
 
 // Slash commands arrive over the interaction gateway, so no privileged intents
 // (message content, members) are needed.
@@ -20,6 +21,8 @@ client.once(Events.ClientReady, async (ready) => {
     // letting the first "only the owner can do that" reply be the clue.
     console.error("Could not resolve the application owner from Discord:", error);
   }
+
+  startCronJobs(client);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
