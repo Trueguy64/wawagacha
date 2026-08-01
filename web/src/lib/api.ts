@@ -1,106 +1,143 @@
+import axios, { type AxiosError } from "axios";
 import type { Rarity } from "./rarity";
+import type { Luner, LunerInput, Session, SortKey, Stats } from "../types/type";
 
-export type Luner = {
-  id: number;
-  name: string;
-  rarity: Rarity;
-  imageUrl: string;
-  createdAt: string;
-  updatedAt: string;
-};
+const api = axios.create({
+    baseURL: "/api",
+    withCredentials: true,
+});
 
-export type RarityStat = {
-  rarity: Rarity;
-  count: number;
-  dropRate: number;
-  points: number;
-};
-
-export type Stats = { total: number; byRarity: RarityStat[] };
-
-export type Session = { authenticated: boolean; imgurEnabled: boolean };
-
-export type SortKey = "rarity" | "rarity-asc" | "name" | "newest" | "oldest";
-
-export type LunerInput = { name: string; rarity: Rarity; imageUrl: string };
-
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-  }
+interface ApiError {
+    error: string;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(path, {
-      credentials: "same-origin",
-      headers: init?.body ? { "Content-Type": "application/json" } : undefined,
-      ...init,
-    });
-  } catch {
-    throw new ApiError("Cannot reach the server — is it running?", 0);
-  }
-
-  if (res.status === 204) return undefined as T;
-
-  const body = (await res.json().catch(() => null)) as { error?: string } | null;
-
-  if (!res.ok) {
-    throw new ApiError(body?.error ?? `Request failed (${res.status})`, res.status);
-  }
-
-  return body as T;
+function getErrorMessage(err: unknown): string {
+    const error = err as AxiosError<ApiError>;
+    if (error.code === "ERR_NETWORK") {
+        return "Cannot reach the server. Is it running?";
+    }
+    return error.response?.data?.error ?? "Something went wrong";
 }
 
-export const api = {
-  session: () => request<Session>("/api/auth/me"),
+export async function getSession(): Promise<Session> {
+    try {
+        const response = await api.get<Session>("/auth/me");
+        return response.data;
+    } catch (err) {
+        throw new Error(getErrorMessage(err), {
+            cause: err,
+        });
+    }
+}
 
-  login: (password: string) =>
-    request<{ authenticated: boolean }>("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ password }),
-    }),
+export async function login(password: string): Promise<{ authenticated: boolean }> {
+    try {
+        const response = await api.post<{ authenticated: boolean }>("/auth/login", { password });
+        return response.data;
+    } catch (err) {
+        throw new Error(getErrorMessage(err), {
+            cause: err,
+        });
+    }
+}
 
-  logout: () => request<{ authenticated: boolean }>("/api/auth/logout", { method: "POST" }),
+export async function logout(): Promise<{ authenticated: boolean }> {
+    try {
+        const response = await api.post<{ authenticated: boolean }>("/auth/logout");
+        return response.data;
+    } catch (err) {
+        throw new Error(getErrorMessage(err), {
+            cause: err,
+        });
+    }
+}
 
-  listLuners: (params: { q?: string; rarity?: Rarity | ""; sort: SortKey }) => {
-    const search = new URLSearchParams({ sort: params.sort });
-    if (params.q) search.set("q", params.q);
-    if (params.rarity) search.set("rarity", params.rarity);
-    return request<{ luners: Luner[] }>(`/api/luners?${search}`);
-  },
+export async function getAllLuners(params: {
+    q?: string;
+    rarity?: Rarity | "";
+    sort: SortKey;
+}): Promise<Luner[]> {
+    try {
+        const response = await api.get<{ luners: Luner[] }>("/luners", {
+            params: {
+                sort: params.sort,
+                q: params.q || undefined,
+                rarity: params.rarity || undefined,
+            },
+        });
+        return response.data.luners;
+    } catch (err) {
+        throw new Error(getErrorMessage(err), {
+            cause: err,
+        });
+    }
+}
 
-  stats: () => request<Stats>("/api/luners/stats"),
+export async function getStats(): Promise<Stats> {
+    try {
+        const response = await api.get<Stats>("/luners/stats");
+        return response.data;
+    } catch (err) {
+        throw new Error(getErrorMessage(err), {
+            cause: err,
+        });
+    }
+}
 
-  createLuner: (input: LunerInput) =>
-    request<{ luner: Luner }>("/api/luners", { method: "POST", body: JSON.stringify(input) }),
+export async function addLuner(input: LunerInput): Promise<Luner> {
+    try {
+        const response = await api.post<{ luner: Luner }>("/luners", input);
+        return response.data.luner;
+    } catch (err) {
+        throw new Error(getErrorMessage(err), {
+            cause: err,
+        });
+    }
+}
 
-  updateLuner: (id: number, input: Partial<LunerInput>) =>
-    request<{ luner: Luner }>(`/api/luners/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(input),
-    }),
+export async function updateLuner(id: number, input: Partial<LunerInput>): Promise<Luner> {
+    try {
+        const response = await api.patch<{ luner: Luner }>(`/luners/${id}`, input);
+        return response.data.luner;
+    } catch (err) {
+        throw new Error(getErrorMessage(err), {
+            cause: err,
+        });
+    }
+}
 
-  deleteLuner: (id: number) => request<void>(`/api/luners/${id}`, { method: "DELETE" }),
+export async function deleteLuner(id: number): Promise<void> {
+    try {
+        await api.delete(`/luners/${id}`);
+    } catch (err) {
+        throw new Error(getErrorMessage(err), {
+            cause: err,
+        });
+    }
+}
 
-  uploadImage: (file: File) =>
-    fileToBase64(file).then((data) =>
-      request<{ imageUrl: string }>("/api/luners/upload", {
-        method: "POST",
-        body: JSON.stringify({ data, filename: file.name }),
-      }),
-    ),
-};
+export async function uploadImage(file: File): Promise<string> {
+    const data = await fileToBase64(file);
+    try {
+        const response = await api.post<{ imageUrl: string }>("/luners/upload", {
+            data,
+            filename: file.name,
+        });
+        return response.data.imageUrl;
+    } catch (err) {
+        throw new Error(getErrorMessage(err), {
+            cause: err,
+        });
+    }
+}
 
 function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new ApiError("Could not read that file", 0));
-    reader.onload = () => resolve(String(reader.result));
-    reader.readAsDataURL(file);
-  });
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("Could not read that file"));
+        reader.onload = () => resolve(String(reader.result));
+        reader.readAsDataURL(file);
+    });
 }
+
+export default api;
