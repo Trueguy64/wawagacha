@@ -1,143 +1,120 @@
-import axios, { type AxiosError } from "axios";
+import axios from "axios";
 import type { Rarity } from "./rarity";
 import type { Luner, LunerInput, Session, SortKey, Stats } from "../types/type";
 
-const api = axios.create({
+export type { Luner, LunerInput, Session, SortKey, Stats };
+
+const client = axios.create({
     baseURL: "/api",
     withCredentials: true,
+    timeout: 15_000,
 });
 
-interface ApiError {
-    error: string;
-}
-
-function getErrorMessage(err: unknown): string {
-    const error = err as AxiosError<ApiError>;
-    if (error.code === "ERR_NETWORK") {
-        return "Cannot reach the server. Is it running?";
-    }
-    return error.response?.data?.error ?? "Something went wrong";
-}
-
-export async function getSession(): Promise<Session> {
-    try {
-        const response = await api.get<Session>("/auth/me");
-        return response.data;
-    } catch (err) {
-        throw new Error(getErrorMessage(err), {
-            cause: err,
-        });
+export class ApiError extends Error {
+    public status?: number;
+    constructor(message: string, status?: number) {
+        super(message);
+        this.status = status;
+        this.name = "ApiError";
     }
 }
 
-export async function login(password: string): Promise<{ authenticated: boolean }> {
-    try {
-        const response = await api.post<{ authenticated: boolean }>("/auth/login", { password });
-        return response.data;
-    } catch (err) {
-        throw new Error(getErrorMessage(err), {
-            cause: err,
-        });
+function toApiError(err: unknown): ApiError {
+    if (err instanceof ApiError) {
+        return err;
     }
+    if (axios.isAxiosError<{ error?: string }>(err)) {
+        if (err.code === "ERR_NETWORK") {
+            return new ApiError("Cannot reach the server. Is it running?");
+        }
+        if (err.code === "ECONNABORTED") {
+            return new ApiError("The server took too long to respond.");
+        }
+        return new ApiError(err.response?.data?.error ?? "Something went wrong", err.response?.status);
+    }
+    return new ApiError(err instanceof Error ? err.message : "Something went wrong");
 }
 
-export async function logout(): Promise<{ authenticated: boolean }> {
-    try {
-        const response = await api.post<{ authenticated: boolean }>("/auth/logout");
-        return response.data;
-    } catch (err) {
-        throw new Error(getErrorMessage(err), {
-            cause: err,
-        });
-    }
+client.interceptors.response.use(
+    (res) => res,
+    (err) => Promise.reject(axios.isCancel(err) ? err : toApiError(err)),
+);
+
+async function getSession(): Promise<Session> {
+    const { data } = await client.get<Session>("/auth/me");
+    return data;
 }
 
-export async function getAllLuners(params: {
-    q?: string;
-    rarity?: Rarity | "";
-    sort: SortKey;
-}): Promise<Luner[]> {
-    try {
-        const response = await api.get<{ luners: Luner[] }>("/luners", {
-            params: {
-                sort: params.sort,
-                q: params.q || undefined,
-                rarity: params.rarity || undefined,
-            },
-        });
-        return response.data.luners;
-    } catch (err) {
-        throw new Error(getErrorMessage(err), {
-            cause: err,
-        });
-    }
+async function login(password: string): Promise<{ authenticated: boolean }> {
+    const { data } = await client.post<{ authenticated: boolean }>("/auth/login", { password });
+    return data;
 }
 
-export async function getStats(): Promise<Stats> {
-    try {
-        const response = await api.get<Stats>("/luners/stats");
-        return response.data;
-    } catch (err) {
-        throw new Error(getErrorMessage(err), {
-            cause: err,
-        });
-    }
+async function logout(): Promise<{ authenticated: boolean }> {
+    const { data } = await client.post<{ authenticated: boolean }>("/auth/logout");
+    return data;
 }
 
-export async function addLuner(input: LunerInput): Promise<Luner> {
-    try {
-        const response = await api.post<{ luner: Luner }>("/luners", input);
-        return response.data.luner;
-    } catch (err) {
-        throw new Error(getErrorMessage(err), {
-            cause: err,
-        });
-    }
+async function listLuners(
+    params: { q?: string; rarity?: Rarity | ""; sort: SortKey },
+    signal?: AbortSignal,
+): Promise<Luner[]> {
+    const { data } = await client.get<{ luners: Luner[] }>("/luners", {
+        params: {
+            sort: params.sort,
+            q: params.q || undefined,
+            rarity: params.rarity || undefined,
+        },
+        signal,
+    });
+    return data.luners;
 }
 
-export async function updateLuner(id: number, input: Partial<LunerInput>): Promise<Luner> {
-    try {
-        const response = await api.patch<{ luner: Luner }>(`/luners/${id}`, input);
-        return response.data.luner;
-    } catch (err) {
-        throw new Error(getErrorMessage(err), {
-            cause: err,
-        });
-    }
+async function getStats(): Promise<Stats> {
+    const { data } = await client.get<Stats>("/luners/stats");
+    return data;
 }
 
-export async function deleteLuner(id: number): Promise<void> {
-    try {
-        await api.delete(`/luners/${id}`);
-    } catch (err) {
-        throw new Error(getErrorMessage(err), {
-            cause: err,
-        });
-    }
+async function createLuner(input: LunerInput): Promise<Luner> {
+    const { data } = await client.post<{ luner: Luner }>("/luners", input);
+    return data.luner;
 }
 
-export async function uploadImage(file: File): Promise<string> {
-    const data = await fileToBase64(file);
-    try {
-        const response = await api.post<{ imageUrl: string }>("/luners/upload", {
-            data,
-            filename: file.name,
-        });
-        return response.data.imageUrl;
-    } catch (err) {
-        throw new Error(getErrorMessage(err), {
-            cause: err,
-        });
-    }
+async function updateLuner(id: number, input: Partial<LunerInput>): Promise<Luner> {
+    const { data } = await client.patch<{ luner: Luner }>(`/luners/${id}`, input);
+    return data.luner;
+}
+
+async function deleteLuner(id: number): Promise<void> {
+    await client.delete(`/luners/${id}`);
+}
+
+async function uploadImage(file: File): Promise<string> {
+    const { data } = await client.post<{ imageUrl: string }>(
+        "/luners/upload",
+        { data: await fileToBase64(file), filename: file.name },
+        { timeout: 60_000 },
+    );
+    return data.imageUrl;
 }
 
 function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onerror = () => reject(new Error("Could not read that file"));
+        reader.onerror = () => reject(new ApiError("Could not read that file"));
         reader.onload = () => resolve(String(reader.result));
         reader.readAsDataURL(file);
     });
 }
 
-export default api;
+export const api = {
+    session: getSession,
+    login,
+    logout,
+    listLuners,
+    stats: getStats,
+    createLuner,
+    updateLuner,
+    deleteLuner,
+    uploadImage,
+};

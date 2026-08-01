@@ -52,7 +52,7 @@ export default function App() {
         api.listLuners({ q: debouncedQuery, rarity, sort }),
         api.stats(),
       ]);
-      setLuners(list.luners);
+      setLuners(list);
       setStats(counts);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {

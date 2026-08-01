@@ -9,10 +9,14 @@ import { apiRouter } from "./routes/index.js";
 
 const app = express();
 
-app.use(express.json());
+app.set("trust proxy", 1);
+app.use(express.json({ limit: "15mb" }));
 app.use(cookieParser(env.COOKIE_SECRET));
 
 app.use("/api", apiRouter);
+app.use("/api", (_req, res) => {
+    res.status(404).json({ error: "Not found" });
+});
 
 /* ------------------------------------------------- static admin website --- */
 
