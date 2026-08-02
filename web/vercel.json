@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.wawagachatesterapi.chickenkiller.com/api/:path*"
+    }
+  ]
+}
