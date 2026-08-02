@@ -5,7 +5,7 @@ import type { Luner, LunerInput, Session, SortKey, Stats } from "../types/type";
 export type { Luner, LunerInput, Session, SortKey, Stats };
 
 const client = axios.create({
-    baseURL: "/api",
+    baseURL: import.meta.env.VITE_API_URL || "/api",
     withCredentials: true,
     timeout: 15_000,
 });
