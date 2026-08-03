@@ -6,6 +6,7 @@ import { forceend } from "./forceend.js";
 import { leaderboard } from "./leaderboard.js";
 import { resetcooldown } from "./resetcooldown.js";
 import { roll } from "./roll.js";
+import { rollstats } from "./rollstats.js";
 import type { Command } from "./types.js";
 import { view } from "./view.js";
 import { xroll } from "./xroll.js";
@@ -21,6 +22,7 @@ export const commands: Command[] = [
   resetcooldown,
   admin,
   forceend,
+  rollstats,
 ];
 
 export const commandsByName = new Map(commands.map((command) => [command.data.name, command]));

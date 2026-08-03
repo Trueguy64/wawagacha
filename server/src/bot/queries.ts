@@ -78,6 +78,12 @@ export type LeaderboardRow = {
   cards: number;
 };
 
+export function dayStart(now: Date = new Date()): Date {
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
+  );
+}
+
 // Regenerates every Monday
 export function weekStart(now: Date = new Date()): Date {
   const start = new Date(
