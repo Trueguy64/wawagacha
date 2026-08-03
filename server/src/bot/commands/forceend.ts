@@ -6,7 +6,7 @@ import { announceWeeklyWinner } from "../cron.js";
 export const forceend: Command = {
   data: new SlashCommandBuilder()
     .setName("forceend")
-    .setDescription("Force end the leaderboard early, ping the winner, and reset the week."),
+    .setDescription("Force end the leaderboard early and ping the winner."),
 
   async execute(interaction) {
     if (!(await isAdmin(interaction))) {

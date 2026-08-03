@@ -36,13 +36,6 @@ export async function announceWeeklyWinner(client: Client, channelId?: string, f
       console.warn(`Could not find a valid text channel for ID: ${targetChannelId}`);
     }
   }
-
-  if (forceEnd) {
-    // Wipe this week's pulls to officially "end" it
-    await prisma.pull.deleteMany({
-      where: { createdAt: { gte: since, lt: until } },
-    });
-  }
 }
 
 export function startCronJobs(client: Client) {
