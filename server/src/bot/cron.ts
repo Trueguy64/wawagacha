@@ -4,7 +4,8 @@ import { getLeaderboard, weekStart } from "./queries.js";
 import { botEnv } from "./env.js";
 import { prisma } from "../prisma/client.js";
 
-export async function announceWeeklyWinner(client: Client, channelId?: string, forceEnd: boolean = false) {
+// 1. Removed channelId from the parameters
+export async function announceWeeklyWinner(client: Client, forceEnd: boolean = false) {
   const now = new Date();
   
   let since: Date | undefined;
@@ -21,8 +22,9 @@ export async function announceWeeklyWinner(client: Client, channelId?: string, f
   }
 
   const rows = await getLeaderboard(since, until);
-  const targetChannelId = channelId || botEnv.DISCORD_ANNOUNCE_CHANNEL_ID;
-
+  
+  // 2. Strictly use the environment variable
+  const targetChannelId = botEnv.DISCORD_ANNOUNCE_CHANNEL_ID;
   if (targetChannelId) {
     const channel = client.channels.cache.get(targetChannelId) || await client.channels.fetch(targetChannelId).catch(() => null);
     if (channel && channel.isTextBased() && "send" in channel) {
@@ -33,7 +35,7 @@ export async function announceWeeklyWinner(client: Client, channelId?: string, f
         await channel.send({ content: `<@${winner.playerId}> won with **${winner.points} points** <:steamhappy:1307411223297654854>`});
       }
     } else {
-      console.warn(`Could not find a valid text channel for ID: ${targetChannelId}`);
+    console.warn("DISCORD_ANNOUNCE_CHANNEL_ID is not defined in the environment variables.");
     }
   }
 }

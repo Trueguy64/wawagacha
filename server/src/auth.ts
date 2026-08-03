@@ -19,7 +19,7 @@ export function checkPassword(password: string): boolean {
 export function startSession(res: Response): void {
   res.cookie(COOKIE_NAME, SESSION_VALUE, {
     httpOnly: true,
-    sameSite: "none",
+    sameSite: "lax",
     secure: true,
     signed: true,
     maxAge: MAX_AGE_MS,
